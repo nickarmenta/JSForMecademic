@@ -1,0 +1,15 @@
+{
+  "name": "jsformecademic",
+  "version": "1.0.0",
+  "description": "js wrapper for meca500",
+  "main": "posetest.js",
+  "dependencies": {
+    "ws": "^7.4.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nick Armenta",
+  "license": "MIT"
+}
