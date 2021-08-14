@@ -8,6 +8,7 @@ const controlWebSocket = new WebSocket(address);
 // Format messge for transmission
 function SendMessage(message) { controlWebSocket.send(message+'\0'); }
 
+
 // Read message from robot
 controlWebSocket.onmessage = function (event) {
     // Parse robot message
@@ -67,62 +68,28 @@ class Pose {
     }
 }
 
-// Confirm positions are within robot working range
-function checkLimits(pose) {
-    console.log('Limit check: ', pose.pose)
-    if(pose.poseType!='joint') {
-        if(pose.moveType=='absolute') {
-            if(pose.pose[0]<110) { return false; }
-            if(pose.pose[0]>170) { return false; }
-            if(pose.pose[1]<-160) { return false; }
-            if(pose.pose[1]>60) { return false; }
-            if(pose.pose[2]<20) { return false; }
-            if(pose.pose[2]>200) { return false; }
-        } else if(pose.moveType=='relative') {
-            if(curPose.pose[0]+pose.pose[0]<110) { return false; }
-            if(curPose.pose[0]+pose.pose[0]>160) { return false; }
-            if(curPose.pose[1]+pose.pose[1]<-160) { return false; }
-            if(curPose.pose[1]+pose.pose[1]>50) { return false; }
-            if(curPose.pose[2]+pose.pose[2]<20) { return false; }
-            if(curPose.pose[2]+pose.pose[2]>200) { return false; }
-        } else {
-            return false;
-        }
-    }
-    return true;
-}
-
-function translatePose(pose) { 
-    pose.pose[0]+=120;
-    pose.pose[1]-=140;
-    pose.pose[2]+=40;
-    return pose;
-}
 
 function Move(pose) {
-    console.log('Target pose: '+pose.pose)
-    console.log('Target pose type: '+pose.moveType)
-
     if(pose.moveType=='absolute') {
         switch(pose.poseType) {
-        case 'joint':
-            moveCommand = 'MoveJoints('
-            break;
-        case 'pose':
-            moveCommand = 'MovePose('
-            break;
-        case 'linear':
-            moveCommand = 'MoveLin('
-            break;
+            case 'joint':
+                moveCommand = 'MoveJoints('
+                break;
+            case 'pose':
+                moveCommand = 'MovePose('
+                break;
+            case 'linear':
+                moveCommand = 'MoveLin('
+                break;
         }
     } else if(pose.moveType=='relative') {
         switch(pose.workFrame) {
-        case 'tool':
-            moveCommand = 'MoveLinRelTRF('
-            break;
-        case 'work':
-            moveCommand = 'MoveLinRelWRF('
-            break;
+            case 'tool':
+                moveCommand = 'MoveLinRelTRF('
+                break;
+            case 'work':
+                moveCommand = 'MoveLinRelWRF('
+                break;
         }
     }
     SendMessage(moveCommand+pose.pose[0]+','+pose.pose[1]+','+pose.pose[2]+','+pose.pose[3]+','+pose.pose[4]+','+pose.pose[5]+')')
@@ -156,4 +123,3 @@ function shake() {
 
 
 var curPose = new Pose([0,0,0,0,0,0]);
-
