@@ -1,50 +1,58 @@
 const WebSocket = require('ws');
 
 // Comms
-var controlWebSocket;
+const defaultIPAddress = "192.168.1.30"
+address = 'ws://' + defaultIPAddress + ':10000';
+const controlWebSocket = new WebSocket(address);
 
-var defaultIPAdress_ = "192.168.1.36"
-adresse = 'ws://' + defaultIPAdress_ + ':10000';
-controlWebSocket = new WebSocket(adresse);
+// Format messge for transmission
+function SendMessage(message) { controlWebSocket.send(message+'\0'); }
 
+// Read message from robot
 controlWebSocket.onmessage = function (event) {
-  var message = event.data.split('][');
-  var code = parseInt(message[0].split('[')[1]);
-  var response = message[1].split(']')[0];
-  switch(code) {
-      case 2007:
-          var statuses = response.split(',');
-          if(statuses[4]==1) {
-              console.log('Robot is paused');
-              SendMessage('ResumeMotion')
-          }
-          if(statuses[3]==1) {
-              console.log('Robot is in error');
-              SendMessage('ResetError')
-          }
-          break;
-      case 2027:
-          var coords = response.split(',');
-          curPose.pose = [parseFloat(coords[0]),parseFloat(coords[1]),parseFloat(coords[2]),parseFloat(coords[3]),parseFloat(coords[4]),parseFloat(coords[5])]
-          break;
-      case 3001:
-          process.exit(1);
-          break;
-      case 1011:
-          SendMessage('ResetError');
-          SendMessage('ResumeMotion');
+    // Parse robot message
+    // Example message: [2007][PAUSED]
+    const message = event.data.split('][');
+    const code = parseInt(message[0].split('[')[1]);
+    const response = message[1].split(']')[0];
+    switch(code) {
+        // Determine error and override  
+        case 2007:
+            const statuses = response.split(',');
+            if(statuses[4]==1) {
+                console.log('Robot is paused');
+                SendMessage('ResumeMotion')
+            }
+            if(statuses[3]==1) {
+                console.log('Robot is in error');
+                SendMessage('ResetError')
+            }
+            break;
+        // Receive coordinates 
+        case 2027:
+            const coords = response.split(',');
+            curPose.pose = [parseFloat(coords[0]),parseFloat(coords[1]),parseFloat(coords[2]),parseFloat(coords[3]),parseFloat(coords[4]),parseFloat(coords[5])]
+            break;
+        // Ignore
+        case 3001:
+            process.exit(1);
+            break;
+        // Override error
+        case 1011:
+            SendMessage('ResetError');
+            SendMessage('ResumeMotion');
   }
+  // Log response
   console.log(code, response);
 }
 
-controlWebSocket.on('open', function open() { UpdateStatus(); shake(); });
-
-function SendMessage(message) { controlWebSocket.send(message+'\0'); }
-
 function UpdateStatus() { 
-  SendMessage('GetStatusRobot');
-  SendMessage('GetPose');
+    SendMessage('GetStatusRobot');
+    SendMessage('GetPose');
 }
+
+// Run test function
+controlWebSocket.on('open', function open() { UpdateStatus(); shake(); });
 
 // Robot stuff
 class Pose {
@@ -59,28 +67,29 @@ class Pose {
     }
 }
 
+// Confirm positions are within robot working range
 function checkLimits(pose) {
-  console.log('Limit check: ', pose.pose)
-  if(pose.poseType!='joint') {
-    if(pose.moveType=='absolute') {
-      if(pose.pose[0]<110) { return false; }
-      if(pose.pose[0]>170) { return false; }
-      if(pose.pose[1]<-160) { return false; }
-      if(pose.pose[1]>60) { return false; }
-      if(pose.pose[2]<20) { return false; }
-      if(pose.pose[2]>200) { return false; }
-    } else if(pose.moveType=='relative') {
-        if(curPose.pose[0]+pose.pose[0]<110) { return false; }
-        if(curPose.pose[0]+pose.pose[0]>160) { return false; }
-        if(curPose.pose[1]+pose.pose[1]<-160) { return false; }
-        if(curPose.pose[1]+pose.pose[1]>50) { return false; }
-        if(curPose.pose[2]+pose.pose[2]<20) { return false; }
-        if(curPose.pose[2]+pose.pose[2]>200) { return false; }
-    } else {
-      return false;
+    console.log('Limit check: ', pose.pose)
+    if(pose.poseType!='joint') {
+        if(pose.moveType=='absolute') {
+            if(pose.pose[0]<110) { return false; }
+            if(pose.pose[0]>170) { return false; }
+            if(pose.pose[1]<-160) { return false; }
+            if(pose.pose[1]>60) { return false; }
+            if(pose.pose[2]<20) { return false; }
+            if(pose.pose[2]>200) { return false; }
+        } else if(pose.moveType=='relative') {
+            if(curPose.pose[0]+pose.pose[0]<110) { return false; }
+            if(curPose.pose[0]+pose.pose[0]>160) { return false; }
+            if(curPose.pose[1]+pose.pose[1]<-160) { return false; }
+            if(curPose.pose[1]+pose.pose[1]>50) { return false; }
+            if(curPose.pose[2]+pose.pose[2]<20) { return false; }
+            if(curPose.pose[2]+pose.pose[2]>200) { return false; }
+        } else {
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
 function translatePose(pose) { 
@@ -100,7 +109,7 @@ function Move(pose) {
             moveCommand = 'MoveJoints('
             break;
         case 'pose':
-        moveCommand = 'MovePose('
+            moveCommand = 'MovePose('
             break;
         case 'linear':
             moveCommand = 'MoveLin('
@@ -129,80 +138,12 @@ function SetSpeed(percentage) {
 }
 
 
-function issueCommand(command) {
-    var targetPose = new Pose([0,0,0,0,0,0], moveType='relative');
-    // Movement distance
-    var dist = 25
-    var command = message.split('!')[1]
-
-    if(command.startsWith('move')) {
-        // extract list of coordinates
-        targetPose.workFrame='work';
-        targetPose.moveType='absolute';
-        try {
-            var pose = command.split('move')[1].split('(')[1].split(')')[0].split(',');
-            console.log('original pose: ', pose);
-            if(pose.length==3) {
-                for(i=0;i<3; i++) {
-                    pose[i] = parseFloat(pose[i]);
-                }
-                targetPose.pose = [pose[0],pose[1],pose[2],-180,0,-90];
-                targetPose = translatePose(targetPose);
-                console.log('translated pose: ', targetPose.pose);
-            } else { client.say(target, `Enter values for x, y, and z!`); }
-        }
-        catch(err) {
-            client.say(target, `Needs to be move(x,y,z)`);
-        }
-    } else {
-        // If high-level command is known, let's execute it
-        switch(command) {
-            case 'up':
-                targetPose.pose[2]=dist;
-                targetPose.workFrame = 'work';
-                break;
-            case 'down':
-                targetPose.pose[2]=-dist;
-                targetPose.workFrame = 'work';
-                break;
-            case 'left':
-                targetPose.pose[1]=-dist;
-                targetPose.workFrame = 'work';
-                break;
-            case 'right':
-                targetPose.pose[1]=dist;
-                targetPose.workFrame = 'work';
-                break;
-            case 'back':
-                targetPose.pose[0]=dist;
-                targetPose.workFrame = 'work';
-                break;
-            case 'forward':
-                targetPose.pose[0]=-dist;
-                targetPose.workFrame = 'work';
-                break;
-            case 'turbo':
-                SetSpeed(90);
-                break;
-            case 'slomo':
-                SetSpeed(15);
-                break;
-            case 'shake':
-                shake();
-                break;
-        }
-    }
-    if(checkLimits(targetPose)==false) {
-        client.say(target, 'Move outside robot limits!');
-    } else  { Move(targetPose); }
-}
-
 function shake() {
     SetSpeed(60);
     SendMessage('SetTRF(0,0,-50,0,0,0)');
     SendMessage('SetBlending(90)');
-    var startPose = new Pose([140,16,250,-180,0,0]);
-    var wigglePose = new Pose([0,0,0,-5,0,0], moveType='relative');
+    const startPose = new Pose([140,16,250,-180,0,0]);
+    const wigglePose = new Pose([0,0,0,-5,0,0], moveType='relative');
     Move(startPose);
     Move(wigglePose);
     wigglePose.pose[3] = 10;
@@ -213,18 +154,6 @@ function shake() {
     SendMessage('SetTRF(0,0,0,0,0,0)');
 }
 
+
 var curPose = new Pose([0,0,0,0,0,0]);
 
-// Register our event handlers (defined below)
-client.on('message', onMessageHandler);
-client.on('connected', onConnectedHandler);
-
-// Connect to Twitch:
-client.connect();
-
-// Called every time a message comes in
-function sendCommand (target, context, msg, self) {
-    UpdateStatus();
-    console.log('Command: ', message)
-    issueCommand(message)
-}

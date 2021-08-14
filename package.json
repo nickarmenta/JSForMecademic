@@ -4,12 +4,20 @@
   "description": "js wrapper for meca500",
   "main": "posetest.js",
   "dependencies": {
-    "ws": "^7.4.4"
+    "ws": "^8.1.0"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Nick Armenta",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickarmenta/JSForMecademic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nickarmenta/JSForMecademic/issues"
+  },
+  "homepage": "https://github.com/nickarmenta/JSForMecademic#readme"
 }
